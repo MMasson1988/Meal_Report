@@ -1,0 +1,372 @@
+---
+title: "Rapport bi-hebdomadaire pour le programme PTME"
+subtitle: |
+  | Caris Foundation International | Impact Youth Project
+author: "M&E Department"
+date: '`r format(Sys.time(), "%d %B %Y")`'
+output: 
+  prettydoc::html_pretty:
+    theme: architect
+    toc: yes
+    toc_depth: 4
+---
+
+```{=html}
+<style>
+body{
+text-align: justify
+}
+</style>
+```
+
+```{r setup, include=FALSE}
+rm(list = ls())
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,python=reticulate::eng_python)
+```
+
+```{r libraries}
+Sys.setenv(TZ='GMT')
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(RMySQL))
+suppressPackageStartupMessages(library(odbc))
+suppressPackageStartupMessages(library(DBI))
+suppressPackageStartupMessages(library(viridis))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(ggrepel))
+suppressPackageStartupMessages(library(ggiraphExtra))
+suppressPackageStartupMessages(library(hrbrthemes))
+suppressPackageStartupMessages(library(plotly))
+suppressPackageStartupMessages(library(stringr))
+suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(tidytext))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(purrr))
+suppressPackageStartupMessages(library(lubridate))
+suppressPackageStartupMessages(library(scales))
+suppressPackageStartupMessages(library(extrafont))
+suppressPackageStartupMessages(library(forcats))
+suppressPackageStartupMessages(library(DT))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(readxl))
+suppressPackageStartupMessages(library(reticulate))
+
+```
+
+```{r, echo=FALSE}
+reticulate::use_python("C:/Users/Moise/AppData/Local/Programs/Python/Python313/python.exe")
+#reticulate::use_condaenv("C:/Users/Davidson Adrien/anaconda3/python.exe")
+# use_python('/usr/local/bin/python3')
+#use_virtualenv("./../../python_env", required = TRUE)
+```
+
+```{python packages}
+import pandas as pd
+import numpy as np
+import seaborn as sns
+from datetime import datetime
+import pymysql
+from sqlalchemy import create_engine
+import warnings
+warnings.filterwarnings('ignore')
+from dateutil.relativedelta import relativedelta
+from dateutil.parser import parse
+from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+import time
+from IPython.core.interactiveshell import InteractiveShell
+InteractiveShell.ast_node_interactivity = "all"
+import os
+from dotenv import load_dotenv
+import openpyxl
+```
+
+```{python}
+# Import the function from the ptme_fonction module located one level up
+from ptme_fonction import save_dataframe_to_excel
+```
+
+```{python}
+from caris import load_google_sheet
+from IPython.display import display  # Import the display function
+
+# Define the Google Sheet ID
+sheet_id = '1ZQD6jePvbffO0JT-j1c4BEDizB7WjBII8avuS7t5ELw'
+
+# Call the function to load data
+ovc_data = load_google_sheet(sheet_id)
+
+# Display the first few rows if data is successfully loaded
+if ovc_data is not None:
+    print(f"This dataset have {ovc_data.shape[0]} observations")
+    display(ovc_data.head(2))
+else:
+    print("Failed to load data from Google Sheet.")
+```
+
+```{python}
+# Correct the file path
+
+# Lire le fichier Excel
+compt_ptme0 = pd.read_excel(file_path, sheet_name=0)
+
+# Afficher les deux premières lignes
+display(compt_ptme0.head(2))
+```
+
+```{python}
+compt_ptme = compt_ptme0[['form.case.@case_id', 'form.is_accepted']].rename(columns={
+    'form.case.@case_id': 'case_id',
+    'form.is_accepted': 'is_accepted'
+})
+```
+
+```{python}
+# file_path_patient = first_part + 'PTME WITH PATIENT CODE ' + datetime.now().strftime("%Y-%m-%d") + ".xlsx"
+name_part_ptme = "PTME WITH PATIENT CODE "
+file_path_patient = first_part + name_part_ptme + "2025-03-13" + ".xlsx"
+id_patient1 = pd.read_excel(file_path_patient, sheet_name=0)
+id_patient = id_patient1.rename(columns={
+    'caseid': 'case_id',
+    'health_id': 'patient_code'
+})
+```
+
+```{python}
+# Filtrer et fusionner les données
+accept = compt_ptme0[['form.case.@case_id', 'form.is_accepted']].rename(columns={
+    'form.case.@case_id': 'case_id',
+    
+    'form.is_accepted': 'is_accepted'
+}).query('is_accepted == "0"')
+accept = accept.merge(id_patient, on='case_id', how='left').dropna(subset=['patient_code']).drop_duplicates(subset=['patient_code'])
+```
+
+```{python}
+# Lire et préparer un autre fichier Excel
+name_part_ptme = "household mother "
+# file_path_hh_mother = first_part + name_part_ptme + datetime.now().strftime("%Y-%m-%d") + ".xlsx"
+file_path_hh_mother = first_part + name_part_ptme + "2025-03-13" + ".xlsx"
+compt_ptme4 = pd.read_excel(file_path_hh_mother, sheet_name=0)
+
+compt_ptme1 = compt_ptme4[['patient_code', 'age_in_year', 'ptme_relationship', 'full_code_patient_menage',
+                          'hiv_test', 'hiv_test_result', 'caseid', 'non_consent_reason']]
+compt_ptme1['patient_code'] = compt_ptme1['patient_code'].str.strip()
+compt_ptme1['age_in_year'] = pd.to_numeric(compt_ptme1['age_in_year'], errors='coerce')
+```
+
+```{python}
+import pandas as pd
+from datetime import datetime
+
+# Define the file paths
+first_part = "C:\\Users\\Moise\\Downloads\\REPORTS_MEAL\\OEV\\"
+name_part_ptme = "Ajout de menages ptme [officiel] "
+# Uncomment the following line to use the current date
+# file_path = first_part + name_part_ptme + datetime.now().strftime("%Y-%m-%d") + ".xlsx"
+file_path = first_part + name_part_ptme + "2025-03-13" + ".xlsx"
+
+# Assuming ovc_data, compt_ptme, id_patient, and accept are already defined DataFrames
+
+# Copy the data
+serv_ptme = ovc_data.copy(deep=True)
+
+# Filter the data
+serv_ptme1 = serv_ptme[
+    (serv_ptme['dead'] == "0") & (serv_ptme['abandoned'] == '0') & 
+    ((serv_ptme['club_q1'] == "yes") | (serv_ptme['club_q2'] == "yes")) &
+    (serv_ptme['is_patient_on_hivhaiti'] != 'no')
+].drop(columns=['is_dead'])
+
+# Merge and group data
+compt_ess_ptme = compt_ptme.merge(id_patient, on="case_id", how="left").groupby('patient_code').size().reset_index(name='n')
+
+# Merge and rename columns
+comm_ptme_mix = serv_ptme.merge(compt_ess_ptme, on="patient_code", how="left").rename(columns={'n': 'on_commCare'})
+
+# Fill missing values and replace
+comm_ptme_mix['on_commCare'] = comm_ptme_mix['on_commCare'].fillna(0).replace({0: "no", 1: "yes"})
+
+# Select relevant columns
+stat_ptme_index = comm_ptme_mix[[
+    'patient_code', 'age_in_year', 'ptme_relationship', 'full_code_patient_menage',
+    'hiv_test', 'hiv_test_result', 'non_consent_reason', 'caseid'
+]]
+
+# Merge and drop missing values
+stat_ptme_index = comm_ptme_mix.merge(stat_ptme_index, on="patient_code", how="left").dropna(subset=['caseid'])
+stat_ptme_index['age_in_year'] = stat_ptme_index['age_in_year'].fillna(0).astype(int)
+
+# Perform necessary transformations on stat_ptme_index
+
+# Total des enfants
+eff_enf = stat_ptme_index[(stat_ptme_index['ptme_relationship'] == "2") & (stat_ptme_index['age_in_year'].between(0, 17))]
+eff_enf = eff_enf['patient_code'].value_counts().reset_index().rename(columns={'index': 'patient_code', 'patient_code': '# Enfants'})
+
+# Enfants testés
+enf_test = stat_ptme_index[(stat_ptme_index['ptme_relationship'] == "2") & (stat_ptme_index['age_in_year'].between(0, 17)) & 
+                           (stat_ptme_index['hiv_test'].isin(["1", "oui"]))]
+enf_test = enf_test['patient_code'].value_counts().reset_index().rename(columns={'index': 'patient_code', 'patient_code': '# Enfants testés'})
+
+# Enfants non testés
+enf_non_test = stat_ptme_index[(stat_ptme_index['ptme_relationship'] == "2") & (stat_ptme_index['age_in_year'].between(0, 17)) & 
+                               (stat_ptme_index['hiv_test'].isin(["2", "non"])) & (stat_ptme_index['non_consent_reason'] == "---")]
+enf_non_test = enf_non_test['patient_code'].value_counts().reset_index().rename(columns={'index': 'patient_code', 'patient_code': '# Enfants non testés'})
+
+# Enfants VIH+ avec code de ménage complet
+enf_vih_pos = stat_ptme_index[(stat_ptme_index['ptme_relationship'] == "2") & (stat_ptme_index['age_in_year'].between(0, 17)) & 
+                              (stat_ptme_index['hiv_test_result'] == "positif") & (stat_ptme_index['hiv_test'].isin(["1", "oui"])) & 
+                              (~stat_ptme_index['full_code_patient_menage'].isin(["//", "---"]))]
+enf_vih_pos = enf_vih_pos['patient_code'].value_counts().reset_index().rename(columns={'index': 'patient_code', 'patient_code': '# Enfants VIH+ avec ST code'})
+
+# Total des enfants VIH+
+enf_vih_pos_total = stat_ptme_index[(stat_ptme_index['ptme_relationship'] == "2") & (stat_ptme_index['age_in_year'].between(0, 17)) & 
+                                    (stat_ptme_index['hiv_test_result'] == "positif") & (stat_ptme_index['hiv_test'].isin(["1", "oui"]))]
+enf_vih_pos_total = enf_vih_pos_total['patient_code'].value_counts().reset_index().rename(columns={'index': 'patient_code', 'patient_code': '# Enfants VIH+'})
+
+# Enfants VIH-
+enf_vih_neg = stat_ptme_index[(stat_ptme_index['ptme_relationship'] == "2") & (stat_ptme_index['age_in_year'].between(0, 17)) & 
+                              (stat_ptme_index['hiv_test_result'] == "negatif") & (stat_ptme_index['hiv_test'].isin(["1", "oui"]))]
+enf_vih_neg = enf_vih_neg['patient_code'].value_counts().reset_index().rename(columns={'index': 'patient_code', 'patient_code': '# Enfants VIH-'})
+
+# Pas d'information sur le test
+no_info_status = stat_ptme_index[(stat_ptme_index['ptme_relationship'] == "2") & (stat_ptme_index['age_in_year'].between(0, 17)) & 
+                                 (stat_ptme_index['hiv_test'] == "1") & (~stat_ptme_index['hiv_test_result'].isin(["positif", "negatif"]))]
+no_info_status = no_info_status['patient_code'].value_counts().reset_index().rename(columns={'index': 'patient_code', 'patient_code': '# no_info_status'})
+
+# Sur commcare
+commcare_ptme_yes = comm_ptme_mix[comm_ptme_mix['on_commCare'] == "yes"]
+
+# Pas sur commcare
+commcare_ptme_no = comm_ptme_mix[(~comm_ptme_mix['patient_code'].isin(accept['patient_code'])) & (comm_ptme_mix['on_commCare'] == "no")]
+
+# Jointure pour les cas non acceptés
+no_accept = pd.merge(serv_ptme1, accept, on='patient_code', how='left')
+no_accept = no_accept[no_accept['is_accepted'] == "0"]
+```
+
+```{python}
+eff_enf = eff_enf
+enf_tes = enf_test
+enf_vih_neg = enf_vih_neg
+no_info_status = no_info_status
+enf_vih_pos_total = enf_vih_pos_total
+enf_non_test = enf_non_test
+```
+
+```{r}
+# Convert the Python DataFrames to R DataFrames
+eff_enf <- py$eff_enf
+enf_test <- py$enf_test
+enf_vih_neg <- py$enf_vih_neg
+no_info_status <- py$no_info_status
+enf_vih_pos_total <- py$enf_vih_pos_total
+enf_non_test <- py$enf_non_test
+```
+
+```{python}
+commcare_ptme_yes = commcare_ptme_yes
+commcare_ptme_no = commcare_ptme_no
+no_accept = no_accept
+comm_ptme_mix = comm_ptme_mix
+accept = accept
+compt_ptme4 = compt_ptme4
+```
+
+```{r}
+# Convert the Python DataFrame to an R DataFrame
+commcare_ptme_yes <- py$commcare_ptme_yes
+commcare_ptme_no <- py$commcare_ptme_no
+no_accept <- py$no_accept
+comm_ptme_mix <- py$comm_ptme_mix
+accept <- py$accept
+compt_ptme4 <- py$compt_ptme4
+```
+
+### **1. INDEX TESTING & COMPTAGE DE MENAGE**
+
+#### Figure 1.1 - Représentation graphique des fréquences de femmes participant en club en Q3 ou Q4 FY24 avec un comptage de ménage ou non
+
+```{r}
+
+# Display the R DataFrame
+#print(dat_ind_ptme_r)
+dat_ind_ptme<-data.frame(comptage=c("Comptage: oui","Comptage: non", "Comptage: refus"),
+                         effectif=c(length(commcare_ptme_yes$on_commCare),
+                                    length(commcare_ptme_no$on_commCare),
+                                    length(no_accept$patient_code)))
+
+#ggiraphExtra::ggDonut(dat_ind_ptme,aes(donuts=comptage,count=effectif),interactive=TRUE, alpha=5, reverse=F, palette = "Dark2")
+if(nrow(dat_ind_ptme)==0){
+  print("Il n'y a pas d'activite")
+}else{
+fig <- plot_ly(dat_ind_ptme, labels = ~comptage, values = ~effectif,
+               type = 'pie',textinfo='value+percent',
+               insidetextorientation='radial')
+
+fig  
+}
+```
+
+#### Figure 1.2 - Représentation graphique des fréquences d'enfants testés, VIH-, VIH+, non testés...
+
+***Note***: Nous tenons à souligner que les filles & fils VIH+ avec un code ST sur CommCare sont au nombre de `r sum(enf_vih_pos$n)`.
+
+```{python}
+
+def process_and_plot_data(eff_enf, enf_test, enf_vih_neg, no_info_status, enf_vih_pos_total, enf_non_test):
+
+    # Création du DataFrame
+    df_ptme_test = pd.DataFrame({
+        "variable": ["enfants", "testés", "VIH-", "statuts inconnus", "VIH+ total", "non testés"],
+        "freq": [
+            eff_enf["# Enfants"].count() if not eff_enf.empty else 0,
+            enf_test["# Enfants testés"].count() if not enf_test.empty else 0,
+            enf_vih_neg["# Enfants VIH-"].count() if not enf_vih_neg.empty else 0,
+            no_info_status["# no_info_status"].count() if not no_info_status.empty else 0,
+            enf_vih_pos_total["# Enfants VIH+"].count() if not enf_vih_pos_total.empty else 0,
+            enf_non_test["# Enfants non testés"].count() if not enf_non_test.empty else 0
+        ],
+        "type": ["enfants", "testing", "statut", "statut", "statut", "testing"]
+    })
+
+    # Vérifier si le DataFrame est vide ou si toutes les fréquences sont nulles
+    if df_ptme_test["freq"].sum() == 0:
+        print("Aucune donnée disponible pour le graphique.")
+        return
+
+    # Conversion en numérique pour éviter les erreurs
+    df_ptme_test["freq"] = pd.to_numeric(df_ptme_test["freq"], errors="coerce").fillna(0)
+
+    # Pivot the DataFrame for stacked bar plot
+    df_pivot = df_ptme_test.pivot(index='type', columns='variable', values='freq').fillna(0)
+
+    # Création du graphique avec Seaborn
+    df_pivot.plot(kind='bar', stacked=True, figsize=(12, 8), color=sns.color_palette("Dark2"))
+
+    # Ajouter les labels sur les barres
+    for n, x in enumerate([*df_pivot.index.values]):
+        for (proportion, y_loc) in zip(df_pivot.loc[x], df_pivot.loc[x].cumsum()):
+            if proportion > 0:  # Skip zero values
+                plt.text(x=n, y=(y_loc - proportion) + (proportion / 2), s=f'{int(proportion):,}', color="black", ha="center")
+
+    # Personnalisation du graphique
+    plt.xlabel("")
+    plt.ylabel("Fréquence")
+    plt.title("Répartition des tests PTME")
+    plt.xticks(rotation=0)
+    plt.grid(axis="y", linestyle="--", alpha=0.7)
+
+    # Déplacer la légende après l'axe
+    plt.legend(title="Catégorie", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    # Ajouter la source de données
+    plt.figtext(0.9, -0.1, f"Data Source: hivhaiti / {pd.Timestamp.today().date()}", ha="right", fontsize=8, style="italic")
+
+    # Affichage du graphique
+    plt.show()
+
+# Appel de la fonction avec des DataFrames d'exemple
+process_and_plot_data(eff_enf, enf_test, enf_vih_neg, no_info_status, enf_vih_pos_total, enf_non_test)
+```

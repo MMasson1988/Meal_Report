@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Donut Chart Example</title>
+    <style>
+      html, body {
+        box-sizing: border-box;
+        display: flow-root;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-3.7.0.min.js"></script>
+    <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-3.7.0.min.js"></script>
+    <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-3.7.0.min.js"></script>
+    <script type="text/javascript">
+        Bokeh.set_log_level("info");
+    </script>
+  </head>
+  <body>
+    <div id="b137a1c2-2d37-4194-ae89-8323f0cc2df5" data-root-id="p1571" style="display: contents;"></div>
+  
+    <script type="application/json" id="a7084c4a-695d-4891-9402-75801e32cd3c">
+      {"474b0e5a-ed1b-4c6b-8c1a-904f80687232":{"version":"3.7.0","title":"Bokeh Application","roots":[{"type":"object","name":"DataTable","id":"p1571","attributes":{"width":400,"height":280,"source":{"type":"object","name":"ColumnDataSource","id":"p1561","attributes":{"selected":{"type":"object","name":"Selection","id":"p1562","attributes":{"indices":[],"line_indices":[]}},"selection_policy":{"type":"object","name":"UnionRenderers","id":"p1563"},"data":{"type":"map","entries":[["dates",["2014-03-01","2014-03-02","2014-03-03","2014-03-04","2014-03-05","2014-03-06","2014-03-07","2014-03-08","2014-03-09","2014-03-10"]],["downloads",[68,74,75,32,68,85,89,31,15,35]]]}}},"view":{"type":"object","name":"CDSView","id":"p1575","attributes":{"filter":{"type":"object","name":"AllIndices","id":"p1576"}}},"columns":[{"type":"object","name":"TableColumn","id":"p1565","attributes":{"field":"dates","title":"Date","formatter":{"type":"object","name":"DateFormatter","id":"p1564"},"editor":{"type":"object","name":"StringEditor","id":"p1567"}}},{"type":"object","name":"TableColumn","id":"p1568","attributes":{"field":"downloads","title":"Downloads","formatter":{"type":"object","name":"StringFormatter","id":"p1569"},"editor":{"type":"object","name":"StringEditor","id":"p1570"}}}]}}]}}
+    </script>
+    <script type="text/javascript">
+      (function() {
+        const fn = function() {
+          Bokeh.safely(function() {
+            (function(root) {
+              function embed_document(root) {
+              const docs_json = document.getElementById('a7084c4a-695d-4891-9402-75801e32cd3c').textContent;
+              const render_items = [{"docid":"474b0e5a-ed1b-4c6b-8c1a-904f80687232","roots":{"p1571":"b137a1c2-2d37-4194-ae89-8323f0cc2df5"},"root_ids":["p1571"]}];
+              root.Bokeh.embed.embed_items(docs_json, render_items);
+              }
+              if (root.Bokeh !== undefined) {
+                embed_document(root);
+              } else {
+                let attempts = 0;
+                const timer = setInterval(function(root) {
+                  if (root.Bokeh !== undefined) {
+                    clearInterval(timer);
+                    embed_document(root);
+                  } else {
+                    attempts++;
+                    if (attempts > 100) {
+                      clearInterval(timer);
+                      console.log("Bokeh: ERROR: Unable to run BokehJS code because BokehJS library is missing");
+                    }
+                  }
+                }, 10, root)
+              }
+            })(window);
+          });
+        };
+        if (document.readyState != "loading") fn();
+        else document.addEventListener("DOMContentLoaded", fn);
+      })();
+    </script>
+  </body>
+</html>
